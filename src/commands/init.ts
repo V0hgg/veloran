@@ -10,6 +10,7 @@ import {
   ActionContext,
   applyTemplateEntries,
   ensureDirectory,
+  removeFileIfMatches,
   TemplateCopyEntry,
   writeIfMissingOrForce,
   writeManagedFile,
@@ -718,26 +719,52 @@ function projectSkillDirectories(config: ReturnType<typeof resolveConfig>): stri
 
 function userSkillDirectories(config: ReturnType<typeof resolveConfig>): string[] {
   const directories: string[] = [];
+  const usesSharedSkillDirectory = config.apps.values.some(
+    (app) => app === "agents" || app === "opencode",
+  );
 
-  for (const app of config.apps.values) {
-    if (app === "agents" || app === "opencode") {
-      directories.push(config.userSkillsDirPath);
-    }
+  if (usesSharedSkillDirectory) {
+    directories.push(config.userSkillsDirPath);
+  }
 
-    if (app === "codex") {
-      directories.push(config.codexUserSkillsDirPath);
-    }
+  if (config.apps.values.includes("codex") && !usesSharedSkillDirectory) {
+    directories.push(config.codexUserSkillsDirPath);
+  }
 
-    if (app === "claude") {
-      directories.push(config.claudeUserSkillsDirPath);
-    }
+  if (config.apps.values.includes("claude")) {
+    directories.push(config.claudeUserSkillsDirPath);
+  }
 
-    if (app === "antigravity") {
-      directories.push(config.antigravityUserSkillsDirPath);
-    }
+  if (config.apps.values.includes("antigravity")) {
+    directories.push(config.antigravityUserSkillsDirPath);
   }
 
   return uniquePaths(directories);
+}
+
+function removeDuplicateCodexSkills(
+  config: ReturnType<typeof resolveConfig>,
+  actionContext: ActionContext,
+): void {
+  const usesSharedSkillDirectory = config.apps.values.some(
+    (app) => app === "agents" || app === "opencode",
+  );
+  const shouldUseSharedCopy =
+    config.apps.values.includes("codex")
+    && usesSharedSkillDirectory
+    && config.codexUserSkillsDirPath !== config.userSkillsDirPath;
+
+  if (!shouldUseSharedCopy) {
+    return;
+  }
+
+  for (const skillName of CORE_SKILL_NAMES) {
+    removeFileIfMatches(
+      path.join(config.codexUserSkillsDirPath, skillName, "SKILL.md"),
+      readTemplate(skillTemplateName(skillName)),
+      actionContext,
+    );
+  }
 }
 
 function buildManifest(config: ReturnType<typeof resolveConfig>, scope: "project" | "user"): string {
@@ -836,6 +863,7 @@ function writeUserInstall(config: ReturnType<typeof resolveConfig>, actionContex
   for (const skillDirectory of userSkillDirectories(config)) {
     writeCoreSkillsToDirectory(skillDirectory, actionContext, config.force);
   }
+  removeDuplicateCodexSkills(config, actionContext);
 
   if (config.apps.needsAgentsFile) {
     writeManagedFile(

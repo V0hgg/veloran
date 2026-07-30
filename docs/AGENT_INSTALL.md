@@ -31,6 +31,8 @@ Set up a project-local Veloran harness by default, validate it, and then continu
 
    For a real global install to a chosen path, use `--user-home <path> --yes`. Veloran appends managed prompt blocks to user prompt files under that path; it must preserve the user's existing prompt text.
 
+   When Codex and a shared-skill target (`agents` or `opencode`) are selected together, Veloran installs the core skills once under `.agents/skills/`. Codex discovers that shared directory, so this avoids duplicate skill entries. Codex-only installs continue to use `.codex/skills/`.
+
 6. After init succeeds, run:
 
    ```bash

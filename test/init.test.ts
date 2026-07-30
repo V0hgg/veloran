@@ -320,6 +320,76 @@ describe("init", () => {
     }
   });
 
+  it("installs one shared skill copy when Codex and OpenCode are selected", async () => {
+    const userHome = createTempWorkspace("veloran-home-");
+
+    await runInit({
+      apps: "codex,opencode",
+      scope: "user",
+      userHome,
+      yes: true,
+    });
+
+    for (const skillName of ["init-harness", "execplan-create", "execplan-execute"]) {
+      expect(
+        fs.existsSync(path.join(userHome, ".agents", "skills", skillName, "SKILL.md")),
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(userHome, ".codex", "skills", skillName, "SKILL.md")),
+      ).toBe(false);
+    }
+  });
+
+  it("removes obsolete Codex copies that still match Veloran templates", async () => {
+    const userHome = createTempWorkspace("veloran-home-");
+
+    for (const skillName of ["init-harness", "execplan-create", "execplan-execute"] as const) {
+      writeFile(
+        userHome,
+        `.codex/skills/${skillName}/SKILL.md`,
+        readTemplate(`skills/${skillName}.SKILL.md`),
+      );
+    }
+
+    await runInit({
+      apps: "all",
+      scope: "user",
+      userHome,
+      yes: true,
+    });
+
+    for (const skillName of ["init-harness", "execplan-create", "execplan-execute"]) {
+      expect(
+        fs.existsSync(path.join(userHome, ".agents", "skills", skillName, "SKILL.md")),
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(userHome, ".codex", "skills", skillName, "SKILL.md")),
+      ).toBe(false);
+    }
+  });
+
+  it("preserves a customized Codex skill while deduplicating user installs", async () => {
+    const userHome = createTempWorkspace("veloran-home-");
+    const customSkill = [
+      "---",
+      "name: execplan-create",
+      "description: My customized skill",
+      "---",
+      "Keep this content.",
+      "",
+    ].join("\n");
+    writeFile(userHome, ".codex/skills/execplan-create/SKILL.md", customSkill);
+
+    await runInit({
+      apps: "codex,agents",
+      scope: "user",
+      userHome,
+      yes: true,
+    });
+
+    expect(readFile(userHome, ".codex/skills/execplan-create/SKILL.md")).toBe(customSkill);
+  });
+
   it("appends user-scope prompt blocks without overwriting user prompt text", async () => {
     const userHome = createTempWorkspace("veloran-home-");
     writeFile(userHome, ".veloran/prompts/AGENTS.md", "# My existing user prompt\n\nKeep this.\n");
@@ -483,6 +553,12 @@ describe("init", () => {
     expect(io.lines.some((line) => line.startsWith("Create:"))).toBe(false);
     expect(io.lines.some((line) => line.includes("Veloran user skills are ready."))).toBe(true);
     expect(io.lines.some((line) => line.includes("Install home:"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(userHome, ".codex", "skills", "init-harness", "SKILL.md")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.join(userHome, ".agents", "skills", "init-harness", "SKILL.md")),
+    ).toBe(false);
   });
 
   it("requires explicit confirmation before real user-scope writes", async () => {
