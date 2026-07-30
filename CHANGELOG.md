@@ -1,3 +1,12 @@
+## [0.2.22](https://github.com/V0hgg/veloran/compare/v0.2.21...v0.2.22) (2026-07-30)
+
+
+### Bug Fixes
+
+* avoid duplicate Codex skill installs ([7aa7f5e](https://github.com/V0hgg/veloran/commit/7aa7f5ea2ff60fa24e1dafeb9b60bb47f684390d))
+
+
+
 ## [0.2.21](https://github.com/V0hgg/veloran/compare/v0.2.20...v0.2.21) (2026-05-05)
 
 
