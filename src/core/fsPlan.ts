@@ -4,7 +4,7 @@ import path from "node:path";
 import { upsertManagedBlock } from "./managedBlock";
 import { readTemplateRelative } from "./templates";
 
-export type ActionType = "Create" | "Update" | "Skip";
+export type ActionType = "Create" | "Update" | "Remove" | "Skip";
 
 export interface ActionResult {
   type: ActionType;
@@ -143,6 +143,44 @@ export function writeManagedFile(
 
   writeFile(path.dirname(filePath), filePath, next, context);
   const result: ActionResult = { type: "Update", path: filePath };
+  printAction(context, result);
+  return result;
+}
+
+export function removeFileIfMatches(
+  filePath: string,
+  content: string,
+  context: ActionContext,
+): ActionResult {
+  if (!fs.existsSync(filePath)) {
+    const result: ActionResult = {
+      type: "Skip",
+      path: filePath,
+      reason: "not found",
+    };
+    printAction(context, result);
+    return result;
+  }
+
+  if (fs.readFileSync(filePath, "utf8") !== content) {
+    const result: ActionResult = {
+      type: "Skip",
+      path: filePath,
+      reason: "content differs",
+    };
+    printAction(context, result);
+    return result;
+  }
+
+  if (!context.dryRun) {
+    fs.unlinkSync(filePath);
+  }
+
+  const result: ActionResult = {
+    type: "Remove",
+    path: filePath,
+    reason: "duplicate Veloran skill",
+  };
   printAction(context, result);
   return result;
 }
